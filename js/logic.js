@@ -1,15 +1,18 @@
 var earthquakeURL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+var tectonicURL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_steps.json"
 
-d3.json(earthquakeURL, function(data) {
-  var mags = data.features.map(  function (i) { return i.properties.mag });
-  var color = d3.scaleLinear()
-                .domain([d3.min(mags),(d3.min(mags) + d3.max(mags))/2,d3.max(mags)])
-                .range(['green','yellow','orange']);
-  // Once we get a response, send the data.features object to the createFeatures function
-  createFeatures(data.features, color);
+d3.json(earthquakeURL, function(earthquakeData) {
+  d3.json(tectonicURL, function(tectonicData){
+    var mags = earthquakeData.features.map(  function (i) { return i.properties.mag });
+    var color = d3.scaleLinear()
+                  .domain([d3.min(mags),(d3.min(mags) + d3.max(mags))/2,d3.max(mags)])
+                  .range(['green','yellow','orange']);
+    // Once we get a response, send the data.features object to the createFeatures function
+    createFeatures(earthquakeData.features, tectonicData.features, color);
+  })
 });
 
-function createFeatures(earthquakeData, color) {
+function createFeatures(earthquakeData, tectonicData, color) {
   // Define a function we want to run once for each feature in the features array
   // Give each feature a popup describing the place and time of the earthquake
   function onEachFeature(feature, layer) {
@@ -32,11 +35,15 @@ function createFeatures(earthquakeData, color) {
     onEachFeature: onEachFeature
   });
 
+  var tectonicPlates = L.geoJSON(tectonicData, {
+    color: 'orange'
+  });
+
   // Sending our earthquakes layer to the createMap function
-  createMap(earthquakes, color);
+  createMap(earthquakes, tectonicPlates, color);
 }
 
-function createMap(earthquakes, color) {
+function createMap(earthquakes, plateLayer, color) {
 
   // Define streetmap and darkmap layers
   var satmap = L.tileLayer("https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}", {
@@ -69,14 +76,16 @@ function createMap(earthquakes, color) {
 
   // Create overlay object to hold our overlay layer
   var overlayMaps = {
-    Earthquakes: earthquakes
+    "Earthquakes": earthquakes,
+    "Tectonic Plates": plateLayer
   };
 
   // Create our map, giving it the streetmap and earthquakes layers to display on load
   var map = L.map("map", {
+    maxBounds: [[-90,-180], [90,180]],
     center: [39.8283, -98.5795],
     zoom: 3,
-    layers: [lightmap, earthquakes]
+    layers: [lightmap, earthquakes],
   });
 
   // Create a layer control
